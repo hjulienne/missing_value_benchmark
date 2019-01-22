@@ -1,0 +1,7 @@
+Consortium,Outcome,FullName,Type,Reference,ReferenceLink,Nsample,Ncase,Ncontrol,Nsnp
+GIANT,BMI,Body Mass Index,Anthropometry,Locke et al. 2015,https://www.ncbi.nlm.nih.gov/pubmed/25673413,339224,,,2554637.0
+GIANT,WHR,Waist hip ratio,Anthropometry,Shungin et al. 2015,http://www.ncbi.nlm.nih.gov/pubmed/25673412,212216,,,2560781.0
+CARDIOGRAMPLUSC4D,CAD,coronary artery disease,CARDIOVASCULAR,Nikpay et al 2015,https://www.ncbi.nlm.nih.gov/pubmed/26343387,184305,60801,123504,25215800.0
+MEGASTROKE,AS,any stroke,CARDIOVASCULAR,Malik et al. 2018,https://www.ncbi.nlm.nih.gov/pubmed/29531354,446696,40585,406111,8255861.0
+GLG,LDL,Low-density lipoprotein,Metabolism,Teslovich et al. 2010,http://www.ncbi.nlm.nih.gov/pubmed/20686565,99900,,,2692429.0
+DIAGRAM,T2D,Type 2 Diabetes,Metabolism,Morris et al. 2012,http://www.ncbi.nlm.nih.gov/pubmed/22885922,69033,12171.0,56862.0,2473442.0
