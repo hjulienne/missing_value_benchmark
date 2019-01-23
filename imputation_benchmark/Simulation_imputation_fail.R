@@ -2,14 +2,13 @@ library(MASS)
 library(ggplot2)
 library(cowplot)
 library(mice)
-library(DMwR)
 library(mclust)
 library(MNMix)
+library(MGMM)
 library("missForest")
 library('VIM')
 
-library(DMwR)
-source('../clustering_analysis_function.R')
+#source('../clustering_analysis_function.R')
 source("./Imputation_perf_functions.R")
 
 ###
@@ -19,6 +18,8 @@ source("./Imputation_perf_functions.R")
 # The Covariance matrix is chosen so the local correlation inside one component
 # goes in a different direction than the global correlation
 ###
+
+shannon_entropy <- function(x){return(-sum(x*log2(x)))}
 mu1 = c(-4,-1)
 mu2 = c(-1, -1)
 
@@ -29,13 +30,17 @@ means = list(mu1, mu2, mu3, mu4)
 Sigma <- matrix(c(0.9, -0.6, -0.6, 0.9),2,2)
 
 X = rGMM(2000, d=2, k=4, M = means, S=Sigma)
+component = row.names(X)
 X = as.data.frame(X)
 names(X) = c("y1", 'y2')
-X["component"] = row.names(X)
+X["component"] = component
 
 
 Mt = fit.MNMix(as.matrix(X[, grepl("y", names(X))]), k=4, parallel=FALSE, report=TRUE, maxit=500)
+Mt_bis = fit.GMM(as.matrix(X[, grepl("y", names(X))]), k=4, parallel=FALSE, report=TRUE, maxit=500)
+
 X["cluster"]= Mt@Assignments$Assignment
+X["cluster_new"]= Mt_bis@Assignments$Assignment
 X["entropy"] = apply(Mt@Responsibilities[,-1], 1, shannon_entropy)
 
 
@@ -44,8 +49,10 @@ X["entropy"] = apply(Mt@Responsibilities[,-1], 1, shannon_entropy)
 p1 = ggplot(X, aes(x=y1, y=y2,color=component)) + geom_point() + geom_density2d() + lg_style
 p2 = ggplot(X, aes(x=y1, y=y2,color=as.factor(cluster))) + geom_point() + geom_density2d() + lg_style
 p3 = ggplot(X, aes(x=y1, y=y2,color= entropy)) + geom_point() + geom_density2d() + lg_style
-plot_grid(p1,p2, p3)
-
+p4 = ggplot(X, aes(x=y1, y=y2,color= as.factor(cluster_new))) + geom_point() + geom_density2d() + lg_style
+pdf("clustering_gaussian_mixture.pdf")
+plot_grid(p1,p2, p3, p4)
+dev.off()
 print( paste0("GMM on the complete data RA", adjustedRandIndex(X$component, X$cluster)))
 
 insertNA <- function(X, fraction)
@@ -73,6 +80,7 @@ entropy_treshold = 0.25
 
 
 for(mr in miss_rate){
+
     X_miss = X[,1:3]
     X_miss[,1:2] = insertNA(as.matrix(X_miss[,1:2]), mr)
 
@@ -82,16 +90,17 @@ for(mr in miss_rate){
 
     Adjusted_Rand_index_table[as.character(mr), "GMM"] = adjustedRandIndex(X_miss$component, X_miss$cluster)
 
-    pdf(paste0("./scatter_plots/GMM_", mr, ".pdf"))
+
+    save_plot(paste0("./scatter_plots/GMM_", mr, ".pdf"),
     plot_against_reference(X, X_miss)
-    dev.off()
+  )
 
     # Rand index when we filter out ambiguous Assignation
     Adjusted_Rand_index_table[as.character(mr), "GMM_filtered"] = adjustedRandIndex(X_miss[X_miss$entropy < 0.25, ]$component, X_miss[X_miss$entropy < 0.25, ]$cluster)
 
-    pdf(paste0("./scatter_plots/GMM_filtered", mr, ".pdf"))
+    save_plot(paste0("./scatter_plots/GMM_filtered", mr, ".pdf"),
     plot_against_reference(X[X_miss$entropy < 0.25, ], X_miss[X_miss$entropy < 0.25, ])
-    dev.off()
+  )
 
     #######################################################
     #######################################################
@@ -118,7 +127,7 @@ for(mr in miss_rate){
         cl_mice[,i] = sort_clust[Mt3@Assignments$Assignment]
     }
 
-
+    X_imputed[,1:2] = complete(imputation)
 
     X_imputed["cluster"] = apply(cl_mice, 1, getmode)
     X_imputed["Proba_mode"] = apply(cl_mice[1:n_imp,]==X_imputed$cluster[1:n_imp], 1, mean)
@@ -127,13 +136,13 @@ for(mr in miss_rate){
     Adjusted_Rand_index_table[as.character(mr), 'MICE_filtered'] = adjustedRandIndex(X_imputed[X_imputed$Proba_mode > 0.5,]$cluster, X_imputed[X_imputed$Proba_mode > 0.5,]$component)
 
 
-    pdf(paste0("./scatter_plots/MICE_", mr, ".pdf"))
-    plot_against_reference(X, X_imputed)
-    dev.off()
+    save_plot(paste0("./scatter_plots/MICE_", mr, ".pdf"),
+    plot_reconstruction_against_reference(X, X_imputed)
+  )
 
-    pdf(paste0("./scatter_plots/MICE_filtered_", mr, ".pdf"))
-    plot_against_reference(X[X_imputed$Proba_mode > 0.5, ], X_imputed[X_imputed$Proba_mode > 0.5, ])
-    dev.off()
+    save_plot(paste0("./scatter_plots/MICE_filtered_", mr, ".pdf"),
+    plot_reconstruction_against_reference(X[X_imputed$Proba_mode > 0.5, ], X_imputed[X_imputed$Proba_mode > 0.5, ])
+  )
 
     ################################################################
     # Evaluate missForest
@@ -148,9 +157,9 @@ for(mr in miss_rate){
     X_RF["entropy"] = apply(Mt4@Responsibilities[,-1], 1, shannon_entropy)
     Adjusted_Rand_index_table[as.character(mr), 'missForest'] = adjustedRandIndex(X_RF$cluster, X$component)
 
-    pdf(paste0("./scatter_plots/RF_", mr, ".pdf"))
-    plot_against_reference(X, X_RF)
-    dev.off()
+    save_plot(paste0("./scatter_plots/RF_", mr, ".pdf"),
+    plot_reconstruction_against_reference(X, X_RF)
+  )
 
     ############################################################
     # kNN
@@ -163,7 +172,12 @@ for(mr in miss_rate){
     X_kNN["entropy"] = apply(Mt5@Responsibilities[,-1], 1, shannon_entropy)
     Adjusted_Rand_index_table[as.character(mr), 'KNN'] = adjustedRandIndex(X_kNN$cluster, X$component)
 
-    pdf(paste0("./scatter_plots/kNN_", mr, ".pdf"))
-    plot_against_reference(X, X_RF)
-    dev.off()
+    save_plot(paste0("./scatter_plots/kNN_", mr, ".pdf"),
+    plot_reconstruction_against_reference(X, X_RF)
+  )
+
+    write.csv(Adjusted_Rand_index_table, 'Adj_rand_index.csv')
+
 }
+
+write.csv(Adjusted_Rand_index_table, 'Adj_rand_index.csv')
