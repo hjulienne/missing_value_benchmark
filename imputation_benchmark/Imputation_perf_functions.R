@@ -1,16 +1,19 @@
-
-
-
-
-
 library(ggplot2)
 library(cowplot)
-
 
 
 lg_style = theme(legend.position="top",
             legend.title = element_text(colour="black", size=10,
                                 face="bold"))
+
+
+
+plot_no_cluster <- function(X_ref, X_test)
+{
+    p1 = ggplot(X_ref, aes(x=y1, y=y2)) + geom_point() + geom_density2d()
+    p2 = ggplot(X_ref, aes(x=y1, y=y2)) + geom_point() + geom_density2d()
+    plot_grid(p1,p2)
+}
 
 
 
