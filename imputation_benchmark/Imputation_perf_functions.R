@@ -6,7 +6,15 @@ lg_style = theme(legend.position="top",
             legend.title = element_text(colour="black", size=10,
                                 face="bold"))
 
+impute_by_fun <- function(X, imp_fun =mean )
+{
 
+  for(var in names(X))
+  {
+    X[is.na(X[var]), var] = imp_fun(X[,var], na.rm=TRUE)
+  }
+  return(X)
+}
 
 plot_no_cluster <- function(X_ref, X_test)
 {

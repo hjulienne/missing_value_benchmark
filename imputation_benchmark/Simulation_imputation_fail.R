@@ -3,11 +3,10 @@ library(ggplot2)
 library(cowplot)
 library(mice)
 library(mclust)
-library(MNMix)
 library(MGMM)
 library("missForest")
 library('VIM')
-
+setwd("/home/hjulienn/Project/missing_value_benchmark/imputation_benchmark/")
 #source('../clustering_analysis_function.R')
 source("./Imputation_perf_functions.R")
 
@@ -19,41 +18,35 @@ source("./Imputation_perf_functions.R")
 # goes in a different direction than the global correlation
 ###
 
-shannon_entropy <- function(x){return(-sum(x*log2(x)))}
-mu1 = c(-4,-1)
-mu2 = c(-1, -1)
+shannon_entropy <- function(x){return(-sum(x*log2(x+10^-20)))}
 
-mu3 = c(1,1)
-mu4 = c(4,1)
-
-means = list(mu1, mu2, mu3, mu4)
-Sigma <- matrix(c(0.9, -0.6, -0.6, 0.9),2,2)
-
-X = rGMM(2000, d=2, k=4, M = means, S=Sigma)
-component = row.names(X)
-X = as.data.frame(X)
-names(X) = c("y1", 'y2')
-X["component"] = component
-
-
-Mt = fit.MNMix(as.matrix(X[, grepl("y", names(X))]), k=4, parallel=FALSE, report=TRUE, maxit=500)
-Mt_bis = fit.GMM(as.matrix(X[, grepl("y", names(X))]), k=4, parallel=FALSE, report=TRUE, maxit=500)
+X <- read.csv("./data_bivariate_simulation.csv")#,row.names=1)
+X = X[,-1]
+Mt = fit.GMM(as.matrix(X[, grepl("y", names(X))]), k=4, parallel=FALSE, report=TRUE, maxit=100)
 
 X["cluster"]= Mt@Assignments$Assignment
-X["cluster_new"]= Mt_bis@Assignments$Assignment
-X["entropy"] = apply(Mt@Responsibilities[,-1], 1, shannon_entropy)
 
+Mt@Responsibilities
+apply(Mt@Responsibilities, 1, shannon_entropy)[1:5]
 
-
+X["entropy"] = apply(Mt@Responsibilities, 1, shannon_entropy)
+head(X)
 # Reconstruction from complete data with classical GMM
-p1 = ggplot(X, aes(x=y1, y=y2,color=component)) + geom_point() + geom_density2d() + lg_style
-p2 = ggplot(X, aes(x=y1, y=y2,color=as.factor(cluster))) + geom_point() + geom_density2d() + lg_style
-p3 = ggplot(X, aes(x=y1, y=y2,color= entropy)) + geom_point() + geom_density2d() + lg_style
-p4 = ggplot(X, aes(x=y1, y=y2,color= as.factor(cluster_new))) + geom_point() + geom_density2d() + lg_style
-pdf("clustering_gaussian_mixture.pdf")
-plot_grid(p1,p2, p3, p4)
+col_pal = c("#FF9D00", "#0C60BA","#008238","#EA401E")
+
+head(X)
+p1 = ggplot(X, aes(x=y1, y=y2, color=as.factor(component))) + geom_point() + geom_density2d() + theme_linedraw()+ lg_style
+p1 = p1 + scale_colour_manual(values=col_pal)
+p1
+
+p2 = ggplot(X, aes(x=y1, y=y2, color=as.factor(cluster))) + geom_point() + geom_density2d() + theme_linedraw()+ lg_style
+p2 = p2 + scale_colour_manual(values=col_pal)
+p3 = ggplot(X, aes(x=y1, y=y2, color= entropy)) + geom_point() + geom_density2d() + theme_linedraw()+ lg_style
+
+pdf("clustering_gaussian_mixture.pdf", width=12, height=4)
+plot_grid(p1,p2, p3, nrow=1)
 dev.off()
-print( paste0("GMM on the complete data RA", adjustedRandIndex(X$component, X$cluster)))
+print( paste0("GMM on the complete data RA ", adjustedRandIndex(X$component, X$cluster)))
 
 insertNA <- function(X, fraction)
 {
@@ -67,24 +60,23 @@ insertNA <- function(X, fraction)
     return(X)
 }
 
-hist(X$entropy)
+miss_rate = seq(0.05, 0.4, 0.05)
 
-miss_rate = seq(0.05, 0.3, 0.05)
 ## Store results of different simulation
-Adjusted_Rand_index_table = data.frame( matrix(rep(0, 6*length(miss_rate)), ncol=6))
+Adjusted_Rand_index_table = data.frame( matrix(rep(0, 8*length(miss_rate)), ncol=8))
 
 row.names(Adjusted_Rand_index_table) = miss_rate
-names(Adjusted_Rand_index_table) = c("GMM_filtered", "GMM", "missForest", "KNN", "MICE","MICE_filtered")
+names(Adjusted_Rand_index_table) = c("GMM_filtered", "GMM", "missForest", "KNN", "MICE","MICE_filtered", "mean", "median")
 
 entropy_treshold = 0.25
-
+mr =0.15
 
 for(mr in miss_rate){
 
     X_miss = X[,1:3]
     X_miss[,1:2] = insertNA(as.matrix(X_miss[,1:2]), mr)
 
-    Mt2 = fit.MNMix(as.matrix(X_miss[,1:2]),k=4)
+    Mt2 = fit.GMM(as.matrix(X_miss[,1:2]),k=4, maxit=20)
     X_miss["cluster"]= Mt2@Assignments$Assignment
     X_miss["entropy"] = apply(Mt2@Responsibilities[,-1], 1, shannon_entropy)
 
@@ -94,13 +86,30 @@ for(mr in miss_rate){
     save_plot(paste0("./scatter_plots/GMM_", mr, ".pdf"),
     plot_against_reference(X, X_miss)
   )
-
     # Rand index when we filter out ambiguous Assignation
     Adjusted_Rand_index_table[as.character(mr), "GMM_filtered"] = adjustedRandIndex(X_miss[X_miss$entropy < 0.25, ]$component, X_miss[X_miss$entropy < 0.25, ]$cluster)
 
     save_plot(paste0("./scatter_plots/GMM_filtered", mr, ".pdf"),
     plot_against_reference(X[X_miss$entropy < 0.25, ], X_miss[X_miss$entropy < 0.25, ])
   )
+    #######################################################
+    #######################################################
+    # Evaluation basic imputation (mean, median)
+    #
+    #######################################################
+    X_mean = X_miss[,1:3]
+    X_median = X_miss[,1:3]
+    head(X_miss)
+  #  median(X_miss[,1], na.rm=TRUE)
+
+    X_mean[,1:2] = impute_by_fun(X_miss[,1:2])
+    X_median[,1:2] = impute_by_fun(X_miss[,1:2], median)
+
+    Mt_mean <- fit.GMM(as.matrix(X_mean[1:2]), k=4,maxit=20)
+    Mt_median <- fit.GMM(as.matrix(X_median[1:2]), k=4,maxit=20)
+
+    Adjusted_Rand_index_table[as.character(mr), 'mean'] = adjustedRandIndex(Mt_mean@Assignments$Assignment, X$component)
+    Adjusted_Rand_index_table[as.character(mr), 'median'] = adjustedRandIndex(Mt_median@Assignments$Assignment, X$component)
 
     #######################################################
     #######################################################
@@ -111,7 +120,6 @@ for(mr in miss_rate){
 
     X_imputed = X_miss[,1:3]
     row.names(X_imputed) = 1:2000
-    names(X_imputed)
 
     n_imp = 5
     imputation = mice(X_imputed[,1:2], m=n_imp, maxit = 50, method = 'pmm', seed = 500)
@@ -120,7 +128,7 @@ for(mr in miss_rate){
     cl_mice = data.frame(matrix(0,dim(X)[1], ncol=n_imp))
     for(i in 1:n_imp){
         dat = complete(imputation, i)
-        Mt3 = fit.MNMix(as.matrix(dat), k=4)
+        Mt3 = fit.GMM(as.matrix(dat), k=4,maxit=20)
         print(Mt3@Means)
         sort_clust = rank(sapply(Mt3@Means, function(x){x[[1]]}))
         print(sort_clust)
@@ -151,7 +159,7 @@ for(mr in miss_rate){
     RF_imp <- missForest(cbind(X_miss[,1:2], rep(1, dim(X_miss)[1])))
     X_RF = RF_imp$ximp[,1:2]
 
-    Mt4 <- fit.MNMix(as.matrix(X_RF[1:2]), k=4)
+    Mt4 <- fit.GMM(as.matrix(X_RF[1:2]), k=4,maxit=20)
 
     X_RF["cluster"]= Mt4@Assignments$Assignment
     X_RF["entropy"] = apply(Mt4@Responsibilities[,-1], 1, shannon_entropy)
@@ -167,7 +175,7 @@ for(mr in miss_rate){
 
 
     X_kNN <- kNN(X_miss[,1:2])
-    Mt5 <- fit.MNMix(as.matrix(X_kNN[1:2]), k=4)
+    Mt5 <- fit.GMM(as.matrix(X_kNN[1:2]), k=4,maxit=20)
     X_kNN["cluster"]= Mt5@Assignments$Assignment
     X_kNN["entropy"] = apply(Mt5@Responsibilities[,-1], 1, shannon_entropy)
     Adjusted_Rand_index_table[as.character(mr), 'KNN'] = adjustedRandIndex(X_kNN$cluster, X$component)
@@ -176,8 +184,8 @@ for(mr in miss_rate){
     plot_reconstruction_against_reference(X, X_RF)
   )
 
-    write.csv(Adjusted_Rand_index_table, 'Adj_rand_index.csv')
-
 }
+
+Adjusted_Rand_index_table
 
 write.csv(Adjusted_Rand_index_table, 'Adj_rand_index.csv')
