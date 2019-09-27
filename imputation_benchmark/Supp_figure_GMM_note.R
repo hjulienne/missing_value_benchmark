@@ -3,7 +3,6 @@ library(data.table)
 setwd("/home/hjulienn/Project/missing_value_benchmark/imputation_benchmark/")
 #source('../clustering_analysis_function.R')
 source("./Imputation_perf_functions.R")
-
 ###
 # Create a bivariate dataset from a gaussian mixture with 4 components
 # The component are placed so knowledge of the first variables should be enough
@@ -24,7 +23,6 @@ p1 = p1 + scale_colour_manual(values=col_pal)
 p1 = p1 + lg_style + guides(color=guide_legend(title="gaussian component"))
 
 dat = read.csv("./Adj_rand_index.csv")
-dat
 dat_long= melt(dat, id.vars= "X")
 
 p = ggplot(dat_long, aes(x=X, y = value, color=variable)) + geom_line(lwd=2) + geom_point(size=2.5)

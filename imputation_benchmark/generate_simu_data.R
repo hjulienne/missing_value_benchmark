@@ -26,7 +26,7 @@ for(i in 1:4){
   covxy = runif(1, -0.9, 0.9)
   Sigma[[i]] = matrix(c(0.9, covxy, covxy, 0.9),2,2)
 }
-=
+
 X = rGMM(2000, d=2, k=4, M = means, S=Sigma)
 component = row.names(X)
 X = as.data.frame(X)
