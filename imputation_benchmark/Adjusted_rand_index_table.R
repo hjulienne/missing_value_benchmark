@@ -24,25 +24,25 @@ insertNA <- function(X, fraction, seed){
     return(X)
 }
 
-Adj_rand_index_table <- function(X, ncomponent, k,  miss_rate = seq(0.0, 0.4, 0.05), fo="./adj.csv", seed=1)
-{
+Adj_rand_index_table <- function(X, ncomponent,
+   k,  miss_rate = seq(0.0, 0.4, 0.05),
+    fo="./adj.csv", seed=1)
+  {
   ## Store results of different simulation
-  Adjusted_Rand_index_table = data.frame( matrix(rep(0, 12*length(miss_rate)), ncol=12))
+  Adjusted_Rand_index_table = data.frame(matrix(rep(NA, 12*length(miss_rate)), ncol=12))
 
   row.names(Adjusted_Rand_index_table) = miss_rate
-  names(Adjusted_Rand_index_table) = c("GMM_filtered", "GMM_filtered_fraction","GMM_fraction_complete", "GMM",
+  names(Adjusted_Rand_index_table) = c("GMM_filtered", "GMM_filtered_fraction",
+  "GMM_fraction_complete", "GMM",
   "missForest", "KNN", "MICE",
-   "MICE_filtered", "MICE_filtered_fraction","MICE_fraction_complete", "mean", "median")
+   "MICE_filtered", "MICE_filtered_fraction",
+   "MICE_fraction_complete", "mean", "median")
 
   for(mr in miss_rate){
-
       Mt2=NULL
-
       X_miss = X
       X_miss[,1:ncomponent] = insertNA(as.matrix(X_miss[, 1:ncomponent]), mr, seed)
-      print(X_miss)
-      print(head(X_miss))
-      print(class(X_miss))
+
       Mt2 = compute_data_cluster_robust(as.data.frame(X_miss[,1:ncomponent]), k)
       X_miss["cluster"] = Mt2$clustered_data[,"cluster"]
       X_miss["entropy"] = Mt2$clustered_data[,"entropy"]

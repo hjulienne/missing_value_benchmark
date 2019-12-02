@@ -65,32 +65,43 @@ plot_performance_adj_error <- function(folder, pattern,
     dat_current  = read.csv(paste0(folder,d))
    dat_list[[d]] = dat_current[, c("X",methods)]
   }
-
-  legend_labels = c("MICE_filtered_fraction"="MICE f fraction","MICE_fraction_complete"= "MICE fraction complete","GMM_filtered_fraction"="GMM f fraction","GMM_fraction_complete"="GMM fraction complete", 
+  legend_labels = c("MICE_filtered_fraction"="MICE f fraction","MICE_fraction_complete"= "MICE fraction complete","GMM_filtered_fraction"="GMM f fraction",
+  "GMM_fraction_complete"="GMM fraction complete",
   "GMM_filtered"= "MGMM filtered", "GMM"="MGMM", "missForest"="missForest",
   "KNN"="k-NN","MICE"="MICE","MICE_filtered"="MICE filtered",
   "mean"="mean","median"="median")
   N = length(file_list)
   data_bm = bind_rows(dat_list)
   data_bm = as.data.table(data_bm)
+  print(1)
+  DM = data_bm[, lapply(.SD, mean, na.rm=TRUE), by=X]
+  Dsd = data_bm[, lapply(.SD, sd, na.rm=TRUE), by=X]
 
-  DM = data_bm[, lapply(.SD, mean), by=X]
-  Dsd = data_bm[, lapply(.SD, sd), by=X]
-  did_compute = function(x){sum(x >0)}
-  N_simu = data_bm[, lapply(.SD, did_compute),by=X]
+
+  did_compute = function(x){sum(!is.nan(x))}
+  N_simu = data_bm[, lapply(.SD, did_compute), by=X]
 
   dat_long= as.data.frame(melt(DM, id.vars= "X"))
   dat_long_error = as.data.frame(melt(Dsd, id.vars= "X"))
   dat_long_count = as.data.frame(melt(N_simu, id.vars="X"))
-
-  is_computation_performed = which(dat_long$value > 0 & dat_long_count$value > 1)
+  print(2)
+  print(dat_long)
+  print(dat_long_error)
+  print(dat_long_count)
+  is_computation_performed = which(dat_long_count$value > 1)
   dat_long = dat_long[is_computation_performed,]
   dat_long_error = dat_long_error[is_computation_performed,]
+
   dat_long_count = dat_long_count[is_computation_performed,]
+  print(3)
+  print(dat_long)
+  print(dat_long_error)
+  print(dat_long_count)
 
   dat_long_error["ymin"] = dat_long["value"] - dat_long_error["value"] / (dat_long_count["value"]^0.5)
   dat_long_error["ymax"] = dat_long["value"] + dat_long_error["value"] / (dat_long_count["value"]^0.5)
 
+  print(4)
   p = ggplot(dat_long, aes(x=X, y = value, color=variable)) + geom_line(lwd=1.25) + geom_point(size=2.5)
   p = p + xlab("missing data ratio") + ylab("Adjusted Rand Index") + theme_linedraw()
   p = p  + lg_style+ scale_colour_brewer(palette = "Set1", labels=legend_labels[methods])# brewer.pal(6,"Set1")+ lg_style
@@ -123,8 +134,6 @@ plot_performance_adj_error <- function(folder, pattern,
   # p = p + geom_errorbar(data=dat_long_error, mapping=aes(x=X, ymin=ymin, ymax=ymax, color=variable))
   # return(p)
 }
-
-
 
 # Create function
 getmode <- function(v) {
