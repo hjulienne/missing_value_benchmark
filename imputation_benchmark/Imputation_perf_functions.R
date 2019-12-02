@@ -55,15 +55,21 @@ plot_performance_dashboard <- function(dat_perf)
   return(p)
 }
 
-plot_performance_adj_error <- function(folder, pattern)
+plot_performance_adj_error <- function(folder, pattern,
+  methods=c("GMM_filtered", "GMM", "missForest","KNN","MICE","MICE_filtered","mean","median"))
 {
   dat_list = list()
   file_list = list.files(folder, pattern= pattern)
-  file_list
+
   for(d in file_list){
-   dat_list[[d]] = read.csv(paste0(folder,d))
+    dat_current  = read.csv(paste0(folder,d))
+   dat_list[[d]] = dat_current[, c("X",methods)]
   }
 
+  legend_labels = c("MICE_filtered_fraction"="MICE f fraction","MICE_fraction_complete"= "MICE fraction complete","GMM_filtered_fraction"="GMM f fraction","GMM_fraction_complete"="GMM fraction complete", 
+  "GMM_filtered"= "MGMM filtered", "GMM"="MGMM", "missForest"="missForest",
+  "KNN"="k-NN","MICE"="MICE","MICE_filtered"="MICE filtered",
+  "mean"="mean","median"="median")
   N = length(file_list)
   data_bm = bind_rows(dat_list)
   data_bm = as.data.table(data_bm)
@@ -87,7 +93,7 @@ plot_performance_adj_error <- function(folder, pattern)
 
   p = ggplot(dat_long, aes(x=X, y = value, color=variable)) + geom_line(lwd=1.25) + geom_point(size=2.5)
   p = p + xlab("missing data ratio") + ylab("Adjusted Rand Index") + theme_linedraw()
-  p = p  + lg_style+ scale_colour_brewer(palette = "Set1")# brewer.pal(6,"Set1")+ lg_style
+  p = p  + lg_style+ scale_colour_brewer(palette = "Set1", labels=legend_labels[methods])# brewer.pal(6,"Set1")+ lg_style
   p = p + guides(color=guide_legend(title="method"))
   p = p + geom_errorbar(data=dat_long_error, mapping=aes(x=X, ymin=ymin, ymax=ymax, color=variable))
 

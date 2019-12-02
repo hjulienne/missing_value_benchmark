@@ -27,10 +27,12 @@ insertNA <- function(X, fraction, seed){
 Adj_rand_index_table <- function(X, ncomponent, k,  miss_rate = seq(0.0, 0.4, 0.05), fo="./adj.csv", seed=1)
 {
   ## Store results of different simulation
-  Adjusted_Rand_index_table = data.frame( matrix(rep(0, 8*length(miss_rate)), ncol=8))
+  Adjusted_Rand_index_table = data.frame( matrix(rep(0, 12*length(miss_rate)), ncol=12))
 
   row.names(Adjusted_Rand_index_table) = miss_rate
-  names(Adjusted_Rand_index_table) = c("GMM_filtered", "GMM", "missForest", "KNN", "MICE","MICE_filtered", "mean", "median")
+  names(Adjusted_Rand_index_table) = c("GMM_filtered", "GMM_filtered_fraction","GMM_fraction_complete", "GMM",
+  "missForest", "KNN", "MICE",
+   "MICE_filtered", "MICE_filtered_fraction","MICE_fraction_complete", "mean", "median")
 
   for(mr in miss_rate){
 
@@ -44,12 +46,15 @@ Adj_rand_index_table <- function(X, ncomponent, k,  miss_rate = seq(0.0, 0.4, 0.
       Mt2 = compute_data_cluster_robust(as.data.frame(X_miss[,1:ncomponent]), k)
       X_miss["cluster"] = Mt2$clustered_data[,"cluster"]
       X_miss["entropy"] = Mt2$clustered_data[,"entropy"]
+
       if(!is.null(Mt2))
       {
         Adjusted_Rand_index_table[as.character(mr), "GMM"] = adjustedRandIndex(X_miss$component, X_miss$cluster)
         # Rand index when we filter out ambiguous Assignation
-        well_identified = which(X_miss$entropy < 0.25)
+        well_identified = which(X_miss$entropy < 0.5)
         Adjusted_Rand_index_table[as.character(mr), "GMM_filtered"] = adjustedRandIndex(X_miss[well_identified, ]$component, X_miss[well_identified, ]$cluster)
+        Adjusted_Rand_index_table[as.character(mr), "GMM_filtered_fraction"] = mean(X_miss$entropy > 0.5)
+        Adjusted_Rand_index_table[as.character(mr), "GMM_fraction_complete"] = mean(complete.cases(X_miss[well_identified, ]))
       }
 
       #######################################################
@@ -85,7 +90,6 @@ Adj_rand_index_table <- function(X, ncomponent, k,  miss_rate = seq(0.0, 0.4, 0.
       cl_mice = data.frame(matrix(0,dim(X)[1], ncol=n_imp))
       names(cl_mice) = 1:n_imp
 
-
       for(i in 1:n_imp){
           dat = complete(imputation, i)
           Mt3 = compute_data_cluster_robust(dat, k)
@@ -105,6 +109,8 @@ Adj_rand_index_table <- function(X, ncomponent, k,  miss_rate = seq(0.0, 0.4, 0.
 
       Adjusted_Rand_index_table[as.character(mr), 'MICE'] = adjustedRandIndex(X_imputed$cluster, X$component)
       Adjusted_Rand_index_table[as.character(mr), 'MICE_filtered'] = adjustedRandIndex(X_imputed[X_imputed$Proba_mode > 0.5,]$cluster, X[X_imputed$Proba_mode > 0.5,]$component)
+      Adjusted_Rand_index_table[as.character(mr), 'MICE_filtered_fraction'] = mean(X_imputed$Proba_mode < 0.5)
+      Adjusted_Rand_index_table[as.character(mr), 'MICE_fraction_complete'] = mean(complete.cases(X_imputed[X_imputed$Proba_mode > 0.5,]))
 
       ################################################################
       # Evaluate missForest
