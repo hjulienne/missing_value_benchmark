@@ -6,7 +6,6 @@ library("ggplot2")
 Sigma = list()
 means = list()
 Nclust = 3
-
 Sigma[[1]] <- matrix(c(2.5, 2.0, 0,
                         2.0, 2.5, 0,
                         0,0,0.3), 3, 3)

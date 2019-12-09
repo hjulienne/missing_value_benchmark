@@ -118,10 +118,9 @@ initialize_at_zero <- function(dat2, cn)
     return(list(M0=M0, S0=S0, pi0=pi0))
 }
 
-
-
 #dat2 must be a dataframe.....
-compute_data_cluster <- function(dat2, cn, fix.means=F, metric="euclidean")
+compute_data_cluster <- function(dat2, cn, fix.means=F,
+   metric="euclidean",always.random=F)
 {
     print(paste("Compute", cn, "clusters" ))
     dat2 = dat2[, grepl( "z_", names(dat2))]
@@ -130,13 +129,16 @@ compute_data_cluster <- function(dat2, cn, fix.means=F, metric="euclidean")
     print(cn*7)
     if(fix.means)
     {
+      print("FIX initialize")
         L = initialize_at_zero(dat2, cn)
         #fit.GMM(as.matrix(X[,1:2]), k=k, fix.means=T, M=means)
         Mt = fit.GMM(as.matrix(dat2), M0=L$M0, k=cn, fix.means, report=TRUE)
         metric ="absolute_correlation"
     }
     else{
-        if(sum(complete.cases(dat2)) < (dim(dat2)[2]*cn*5))
+        print((sum(complete.cases(dat2)) < (dim(dat2)[2]*cn*5)))
+        print(always.random)
+        if((sum(complete.cases(dat2)) < (dim(dat2)[2]*cn*5)) || (always.random))
         {
             print("initialize at random")
             L = initialize_at_random(dat2, cn)
@@ -147,7 +149,10 @@ compute_data_cluster <- function(dat2, cn, fix.means=F, metric="euclidean")
         }
         else{
             print("initialize with k-means")
-            Mt = fit.GMM(as.matrix(dat2), k=cn, report=TRUE)
+            L = initialize_at_zero(dat2, cn)
+            Mt = fit.GMM(as.matrix(dat2), k=cn, S0=L$S0, report=TRUE)
+
+
         }
     }
     print(Mt)
@@ -158,14 +163,14 @@ compute_data_cluster <- function(dat2, cn, fix.means=F, metric="euclidean")
     return(list( clustered_data = dat2, MNMmix=Mt))
 }
 
-compute_data_cluster_robust <- function(dat2, cn, fix.means=F, metric="euclidean", max_trial = 10)
+compute_data_cluster_robust <- function(dat2, cn, fix.means=F,always.random=F, metric="euclidean", max_trial = 10)
 {
   i=0
   while(i < max_trial)
   {
     i = i + 1
     tryCatch({
-    cl_res = compute_data_cluster(dat2, cn, fix.means=F, metric="euclidean")
+    cl_res = compute_data_cluster(dat2, cn, fix.means, metric, always.random)
     return(cl_res)
     }, error = function(e){
       print(paste('Error', e, "Occured for trial", i))

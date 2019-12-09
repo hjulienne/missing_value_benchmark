@@ -22,7 +22,6 @@ ncomponent =3
 names(X)[1:3] = c("z_1", "z_2", "z_3")
 nsamp = dim(X)[1]
 
-
 X[,1:ndim] = align_zscores(X[,1:ndim])
 Xtest = insertNA(X, 0.1, 34)
 # Reconstruction from complete data with classical GMM
@@ -33,7 +32,6 @@ p1 = p1 + scale_colour_manual(values=col_pal)
 p1 = p1 + lg_style + guides(color=guide_legend(title="gaussian component"))
 
 X$component = as.factor(X$component)
-
 p1 = ggplot(X, aes(x=z_1, y=z_2, color=component)) + geom_point() + scale_colour_manual(values=col_pal) + lg_style
 p2 = ggplot(X, aes(x=z_2, y=z_3, color=component)) + geom_point()+ scale_colour_manual(values=col_pal) + lg_style
 
@@ -45,10 +43,10 @@ png("Benchmark_simulation.png", width=10, height=5.5, unit="in", res=180)
   plot_grid(legend,p_row, nrow=2, align="v", rel_heights=c(0.1,0.9))
 dev.off()
 
-miss_rate = seq(0.0, 0.2, 0.025)
+miss_rate = seq(0.0, 0.4, 0.05)
 i=1
 
-for(i in 21:40)
+for(i in 1:20)
 {
   fo = paste0("./benchmark_data/Adj_RI_simulation_GWAS_",i,".csv")
   SR = as.numeric(substr(as.character(as.numeric(Sys.time())), 13,17))

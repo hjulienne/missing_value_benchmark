@@ -56,11 +56,12 @@ plot_performance_dashboard <- function(dat_perf)
 }
 
 plot_performance_adj_error <- function(folder, pattern,
-  methods=c("GMM_filtered", "GMM", "missForest","KNN","MICE","MICE_filtered","mean","median"))
+  methods=c("GMM_filtered", "GMM", "missForest","KNN",
+  "MICE","MICE_filtered","mean","median"))
 {
   dat_list = list()
   file_list = list.files(folder, pattern= pattern)
-
+  print(sort(file_list))
   for(d in file_list){
     dat_current  = read.csv(paste0(folder,d))
    dat_list[[d]] = dat_current[, c("X",methods)]
@@ -71,6 +72,9 @@ plot_performance_adj_error <- function(folder, pattern,
   "KNN"="k-NN","MICE"="MICE","MICE_filtered"="MICE filtered",
   "mean"="mean","median"="median")
   N = length(file_list)
+  
+  print("Number of simulation considered:")
+  print(N)
   data_bm = bind_rows(dat_list)
   data_bm = as.data.table(data_bm)
   print(1)
@@ -85,18 +89,14 @@ plot_performance_adj_error <- function(folder, pattern,
   dat_long_error = as.data.frame(melt(Dsd, id.vars= "X"))
   dat_long_count = as.data.frame(melt(N_simu, id.vars="X"))
   print(2)
-  print(dat_long)
-  print(dat_long_error)
-  print(dat_long_count)
+
   is_computation_performed = which(dat_long_count$value > 1)
   dat_long = dat_long[is_computation_performed,]
   dat_long_error = dat_long_error[is_computation_performed,]
 
   dat_long_count = dat_long_count[is_computation_performed,]
   print(3)
-  print(dat_long)
-  print(dat_long_error)
-  print(dat_long_count)
+
 
   dat_long_error["ymin"] = dat_long["value"] - dat_long_error["value"] / (dat_long_count["value"]^0.5)
   dat_long_error["ymax"] = dat_long["value"] + dat_long_error["value"] / (dat_long_count["value"]^0.5)
